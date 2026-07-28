@@ -1,42 +1,39 @@
-# Despliegue en GitHub Pages Completado
+# Proyecto Preparado para Vercel (Con Stripe y Middleware)
 
-Se han aplicado todos los cambios necesarios para que el proyecto pueda ser exportado como un sitio estático y desplegado en la URL: `https://miniestalozano-hub.github.io/patinete/`.
+He revertido todas las limitaciones de "sitio estático" que requería GitHub Pages. Ahora el proyecto vuelve a ser una aplicación **Next.js dinámica completa**, lo que significa que **Stripe** y el **Middleware** funcionarán perfectamente cuando lo subas a Vercel.
 
-## Cambios Realizados
+## Cambios Realizados para la Restauración
 
-### 1. Configuración de Next.js
-Se ha modificado [next.config.mjs](file:///Users/pedrocanovas/Documents/personal/manuel2/next.config.mjs) para:
-- Habilitar `output: 'export'`.
-- Configurar el `basePath` a `/patinete`.
-- Desactivar la optimización de imágenes en el servidor (`unoptimized: true`), necesaria para sitios estáticos.
-- Forzar el uso de `trailingSlash: true` para evitar errores de 404 en GitHub Pages.
+### 1. Configuración de Next.js Restaurada
+- Se ha eliminado el modo `output: 'export'`.
+- Se han quitado los prefijos de ruta (`basePath`) para que la web funcione en el dominio principal que te dé Vercel.
+- Se ha reactivado la **optimización de imágenes** nativa.
 
-### 2. Automatización con GitHub Actions
-Se ha creado el archivo [.github/workflows/deploy.yml](file:///Users/pedrocanovas/Documents/personal/manuel2/.github/workflows/deploy.yml). Este flujo hará lo siguiente en cada push a la rama `main`:
-- Instalar dependencias.
-- Generar el cliente de Prisma.
-- Ejecutar `npm run build` (que generará la carpeta `out/`).
-- Publicar el contenido en GitHub Pages.
+### 2. Middleware Reactivado
+- El archivo `src/middleware.ts` vuelve a estar activo. Esto restaurará la seguridad en las rutas de `/admin` y la gestión de sesiones de usuario.
 
-### 3. Ajustes de Código
-- **Middleware**: Se ha renombrado [src/middleware.ts](file:///Users/pedrocanovas/Documents/personal/manuel2/src/middleware.ts) a `middleware.ts.disabled` porque Next.js no permite middleware en exportaciones estáticas.
-- **Pre-renderizado de Páginas**: Se ha añadido `generateStaticParams` en:
-    - [Página de producto](file:///Users/pedrocanovas/Documents/personal/manuel2/src/app/producto/%5Bslug%5D/page.tsx)
-    - [Página de categoría](file:///Users/pedrocanovas/Documents/personal/manuel2/src/app/catalogo/%5Bcategoria%5D/page.tsx)
-    - [Página de subcategoría](file:///Users/pedrocanovas/Documents/personal/manuel2/src/app/catalogo/%5Bcategoria%5D/%5Bsubcategoria%5D/page.tsx)
-    - Esto asegura que todas las fichas de productos y categorías se generen como HTML estático durante el build.
+### 3. Código Limpio y Dinámico
+- He eliminado las funciones de pre-renderizado estático que añadimos antes. Ahora la web consultará la base de datos de Supabase en tiempo real, permitiendo que Stripe pueda verificar precios y stock de forma segura.
+- Se ha eliminado el flujo de trabajo de GitHub Pages (`.github/workflows/deploy.yml`) para evitar confusiones.
 
-## Pasos Siguientes Obligatorios
+---
 
-Para que el despliegue funcione, **debes configurar los Secrets en tu repositorio de GitHub**:
+## Guía para el Despliegue en Vercel
 
-1. Ve a tu repositorio en GitHub > **Settings** > **Secrets and variables** > **Actions**.
-2. Añade los siguientes **Repository secrets** (usa los valores de tu archivo `.env` local):
-    - `DATABASE_URL`: Tu cadena de conexión a Supabase Postgres.
-    - `NEXT_PUBLIC_SUPABASE_URL`: Tu URL de proyecto de Supabase.
-    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Tu clave anónima de Supabase.
-    - `STRIPE_SECRET_KEY`: Tu clave secreta de Stripe.
-    - `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`: Tu clave pública de Stripe.
+Sigue estos pasos para tener tu tienda funcionando en menos de 5 minutos:
 
-> [!IMPORTANT]
-> **Sobre los datos**: Dado que el sitio es estático, los productos se "congelan" en el momento del build. Si añades un producto en Supabase, la web no se actualizará hasta que el Action de GitHub se ejecute de nuevo (puedes lanzarlo manualmente o hacer un push).
+1. **Sube el código a GitHub**: Haz un `git push` con los cambios que he aplicado.
+2. **Entra en [Vercel](https://vercel.com)** e inicia sesión con tu cuenta de GitHub.
+3. Pulsa en **"Add New" > "Project"**.
+4. Busca tu repositorio `patinete` y dale a **"Import"**.
+5. **MUY IMPORTANTE**: En el apartado **"Environment Variables"**, añade las mismas variables que configuramos antes (usa los valores de tu `.env` o los que sacaste de Supabase y Stripe):
+    - `DATABASE_URL`
+    - `NEXT_PUBLIC_SUPABASE_URL`
+    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+    - `STRIPE_SECRET_KEY`
+    - `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`
+    - `NEXT_PUBLIC_SITE_URL` (puedes poner la URL que te asigne Vercel después del primer despliegue).
+6. Dale a **"Deploy"**.
+
+> [!TIP]
+> Una vez termine el despliegue, Vercel te dará una URL (ej: `patinete.vercel.app`). ¡Tu tienda estará totalmente funcional, incluyendo los pagos con Stripe!

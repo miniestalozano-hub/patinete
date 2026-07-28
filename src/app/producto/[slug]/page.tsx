@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getProductBySlug, getRelatedProducts, getAllProductSlugs } from "@/lib/products";
+import { getProductBySlug, getRelatedProducts } from "@/lib/products";
 import { ImageViewer } from "@/components/product/ImageViewer";
 import { AddToCartForm } from "@/components/product/AddToCartForm";
 import { CompatibilityList } from "@/components/product/CompatibilityList";
@@ -10,10 +10,6 @@ import { ProductCard } from "@/components/ui/ProductCard";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
-}
-
-export async function generateStaticParams() {
-  return getAllProductSlugs();
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {

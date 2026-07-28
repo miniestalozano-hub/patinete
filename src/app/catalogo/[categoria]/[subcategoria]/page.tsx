@@ -1,19 +1,13 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { getCatalogProducts, getAllCategoryParams } from "@/lib/products";
+import { getCatalogProducts } from "@/lib/products";
 import { parseCatalogFilters, flattenSearchParams } from "@/lib/parse-filters";
 import { CatalogResults } from "@/components/catalog/CatalogResults";
 
 interface PageProps {
   params: Promise<{ categoria: string; subcategoria: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
-}
-
-export async function generateStaticParams() {
-  const allParams = await getAllCategoryParams();
-  // Solo devolvemos los que tienen AMBAS (categoria y subcategoria)
-  return allParams.filter(p => p.subcategoria);
 }
 
 async function getSubcategory(categoria: string, subcategoria: string) {

@@ -1,7 +1,7 @@
-# Tareas de Despliegue en GitHub Pages
+# Tareas de Transición a Vercel
 
-- [x] Configurar `next.config.mjs` para exportación estática (`/patinete`)
-- [x] Crear workflow de GitHub Actions (`deploy.yml`)
-- [x] Ajustar el Middleware para evitar errores en el build estático
-- [x] Verificar la generación de parámetros estáticos para productos y categorías
-- [ ] Validar el build localmente con `next build` (Opcional si el usuario no tiene la DB local)
+- [x] Restaurar `next.config.mjs` al estado original (quitar export estático)
+- [x] Reactivar el Middleware (`src/middleware.ts`)
+- [x] Eliminar el workflow de GitHub Pages (`deploy.yml`)
+- [x] Revertir cambios de generación estática en el código para mayor limpieza
+- [x] Verificar que el proyecto está listo para ser importado en Vercel
