@@ -179,3 +179,33 @@ export async function getCategoryTree() {
     include: { subcategories: { where: { isActive: true }, orderBy: { order: "asc" } } },
   });
 }
+
+/** Obtiene todos los slugs de productos publicados para generacion estatica. */
+export async function getAllProductSlugs() {
+  const products = await prisma.product.findMany({
+    where: { status: "PUBLISHED" },
+    select: { slug: true },
+  });
+  return products.map((p) => ({ slug: p.slug }));
+}
+
+/** Obtiene todas las combinaciones de categoria y subcategoria para generacion estatica. */
+export async function getAllCategoryParams() {
+  const categories = await prisma.category.findMany({
+    where: { isActive: true },
+    select: { slug: true, subcategories: { where: { isActive: true }, select: { slug: true } } },
+  });
+
+  const params: { categoria: string; subcategoria?: string }[] = [];
+
+  categories.forEach((cat) => {
+    // Solo categoria
+    params.push({ categoria: cat.slug });
+    // Categoria + Subcategoria
+    cat.subcategories.forEach((sub) => {
+      params.push({ categoria: cat.slug, subcategoria: sub.slug });
+    });
+  });
+
+  return params;
+}

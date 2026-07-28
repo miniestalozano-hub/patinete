@@ -1,13 +1,19 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { getCatalogProducts } from "@/lib/products";
+import { getCatalogProducts, getAllCategoryParams } from "@/lib/products";
 import { parseCatalogFilters, flattenSearchParams } from "@/lib/parse-filters";
 import { CatalogResults } from "@/components/catalog/CatalogResults";
 
 interface PageProps {
   params: Promise<{ categoria: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
+}
+
+export async function generateStaticParams() {
+  const allParams = await getAllCategoryParams();
+  // Solo devolvemos los que tienen categoria pero NO subcategoria (ya que esta ruta es solo para categoria)
+  return allParams.filter(p => !p.subcategoria).map(p => ({ categoria: p.categoria }));
 }
 
 async function getCategory(slug: string) {
