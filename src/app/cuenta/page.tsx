@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { AuthForm } from "@/components/account/AuthForm";
 import { SignOutButton } from "@/components/account/SignOutButton";
-import { Package, MapPin, LogOut } from "lucide-react";
+import { Package, MapPin } from "lucide-react";
 
 export const metadata = { title: "Mi cuenta" };
 
