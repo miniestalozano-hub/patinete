@@ -1,0 +1,309 @@
+// ============================================================
+// PATIN-SHOP · Esquema de base de datos (Prisma + Supabase Postgres)
+// ------------------------------------------------------------
+// Diseñado para escalar a miles de productos, con soporte para:
+//  - Categorías y subcategorías jerárquicas
+//  - Marcas
+//  - Compatibilidad con modelos de patinetes (relación N:N)
+//  - Múltiples imágenes por producto
+//  - Variantes simples vía SKU (extensible a variantes reales)
+//  - Carrito, favoritos, pedidos y direcciones
+//  - Panel de administración (roles de usuario)
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// -------------------- USUARIOS --------------------
+
+enum Role {
+  CUSTOMER
+  ADMIN
+}
+
+model User {
+  id        String   @id @default(uuid())
+  // Debe coincidir con el id de Supabase Auth (auth.users.id)
+  authId    String   @unique
+  email     String   @unique
+  name      String?
+  phone     String?
+  role      Role     @default(CUSTOMER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  addresses Address[]
+  orders    Order[]
+  favorites Favorite[]
+  cart      Cart?
+
+  @@map("users")
+}
+
+model Address {
+  id         String  @id @default(uuid())
+  userId     String
+  user       User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName   String
+  line1      String
+  line2      String?
+  city       String
+  province   String
+  postalCode String
+  country    String  @default("ES")
+  phone      String?
+  isDefault  Boolean @default(false)
+
+  ordersShipping Order[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("addresses")
+}
+
+// -------------------- CATÁLOGO --------------------
+
+model Category {
+  id            String         @id @default(uuid())
+  name          String
+  slug          String         @unique
+  description   String?
+  image         String?
+  order         Int            @default(0)
+  isActive      Boolean        @default(true)
+  subcategories Subcategory[]
+  products      Product[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([slug])
+  @@map("categories")
+}
+
+model Subcategory {
+  id         String   @id @default(uuid())
+  name       String
+  slug       String   @unique
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  order      Int      @default(0)
+  isActive   Boolean  @default(true)
+  products   Product[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([categoryId])
+  @@index([slug])
+  @@map("subcategories")
+}
+
+model Brand {
+  id       String    @id @default(uuid())
+  name     String    @unique
+  slug     String    @unique
+  logo     String?
+  products Product[]
+
+  @@map("brands")
+}
+
+// Modelos de patinete con los que un producto puede ser compatible.
+// Ej: "Xiaomi Pro 2", "Kukirin G2 Max", "Dualtron Mini", "Segway Ninebot Max"...
+model ScooterModel {
+  id       String    @id @default(uuid())
+  name     String
+  slug     String    @unique
+  brand    String // marca del patinete (texto libre, no FK, para agilidad de carga)
+  products Product[] @relation("ProductCompatibility")
+
+  @@index([brand])
+  @@map("scooter_models")
+}
+
+enum ProductStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model Product {
+  id            String        @id @default(uuid())
+  sku           String        @unique
+  name          String
+  slug          String        @unique
+  brandId       String?
+  brand         Brand?        @relation(fields: [brandId], references: [id])
+  categoryId    String
+  category      Category      @relation(fields: [categoryId], references: [id])
+  subcategoryId String?
+  subcategory   Subcategory?  @relation(fields: [subcategoryId], references: [id])
+
+  description   String        @db.Text
+  shortDescription String?
+
+  price         Decimal       @db.Decimal(10, 2)
+  compareAtPrice Decimal?     @db.Decimal(10, 2) // precio tachado, para ofertas
+  currency      String        @default("EUR")
+
+  stock         Int           @default(0)
+  weightGrams   Int? // peso en gramos, util para calcular envio
+  voltage       Int? // voltios, usado como filtro (36V, 48V, 52V, 60V...)
+  powerWatts    Int? // vatios, usado como filtro
+
+  status        ProductStatus @default(DRAFT)
+  isFeatured    Boolean       @default(false)
+
+  images        ProductImage[]
+  compatibleWith ScooterModel[] @relation("ProductCompatibility")
+
+  // Productos relacionados (relacion N:N autoreferenciada y explicita)
+  relatedTo     ProductRelation[] @relation("RelationFrom")
+  relatedFrom   ProductRelation[] @relation("RelationTo")
+
+  cartItems     CartItem[]
+  favorites     Favorite[]
+  orderItems    OrderItem[]
+
+  seoTitle      String?
+  seoDescription String?
+
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  // Indices pensados para busqueda y filtrado rapido sobre miles de productos
+  @@index([categoryId])
+  @@index([subcategoryId])
+  @@index([brandId])
+  @@index([status])
+  @@index([price])
+  @@index([voltage])
+  @@index([name])
+  @@map("products")
+}
+
+// Relacion explicita producto <-> producto relacionado, permite
+// definir relaciones manuales curadas (no solo "misma categoria").
+model ProductRelation {
+  id              String  @id @default(uuid())
+  productId       String
+  relatedProductId String
+  product         Product @relation("RelationFrom", fields: [productId], references: [id], onDelete: Cascade)
+  relatedProduct  Product @relation("RelationTo", fields: [relatedProductId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, relatedProductId])
+  @@map("product_relations")
+}
+
+model ProductImage {
+  id        String  @id @default(uuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  url       String
+  altText   String?
+  order     Int     @default(0)
+  // Angulo en grados, usado por el visor 360/pseudo-3D (0, 45, 90, ... 315)
+  angle     Int?
+
+  @@index([productId])
+  @@map("product_images")
+}
+
+// -------------------- CARRITO Y FAVORITOS --------------------
+
+model Cart {
+  id        String     @id @default(uuid())
+  userId    String     @unique
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     CartItem[]
+  updatedAt DateTime   @updatedAt
+  createdAt DateTime   @default(now())
+
+  @@map("carts")
+}
+
+model CartItem {
+  id        String  @id @default(uuid())
+  cartId    String
+  cart      Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quantity  Int     @default(1)
+
+  @@unique([cartId, productId])
+  @@map("cart_items")
+}
+
+model Favorite {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, productId])
+  @@map("favorites")
+}
+
+// -------------------- PEDIDOS --------------------
+
+enum OrderStatus {
+  PENDING
+  PAID
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+model Order {
+  id              String      @id @default(uuid())
+  orderNumber     String      @unique // ej. PS-2026-000123
+  userId          String
+  user            User        @relation(fields: [userId], references: [id])
+  shippingAddressId String?
+  shippingAddress Address?    @relation(fields: [shippingAddressId], references: [id])
+
+  status          OrderStatus @default(PENDING)
+  items           OrderItem[]
+
+  subtotal        Decimal     @db.Decimal(10, 2)
+  shippingCost    Decimal     @db.Decimal(10, 2) @default(0)
+  total           Decimal     @db.Decimal(10, 2)
+  currency        String      @default("EUR")
+
+  stripeSessionId String?     @unique
+  stripePaymentIntentId String?
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String  @id @default(uuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Int
+  // Se guarda el precio y nombre en el momento de compra, por si el producto cambia despues
+  unitPrice Decimal @db.Decimal(10, 2)
+  productName String
+
+  @@index([orderId])
+  @@map("order_items")
+}
